@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nost Shin</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #87ceeb;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #ui {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(10px);
+      padding: 14px 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      color: #4a4a4a;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+      color: #e07a5f;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .stats {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      font-size: 13px;
+      color: #444;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 10px 22px;
+      border-radius: 30px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="crosshair"></div>
+  <div id="ui">
+    <div class="card">
+      <h1>Nost Shin</h1>
+      <div class="stats">
+        <div class="stat-item">✨ Nost Remnants: <span id="remnant-count">0</span></div>
+        <div class="stat-item">🌸 Shin Blossom: <span id="flower-count">0</span></div>
+      </div>
+    </div>
+  </div>
+  <div id="instructions">
+    <b>Click screen to lock mouse</b> &bull; [W, A, S, D] Move &bull; [Space] Jump &bull; [E] Gather Nearby &bull; [Esc] Unlock
+  </div>
+
+  <script>
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    const soundEffects = {
+      jump: () => {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(450, now + 0.16);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.16);
+      },
+
+      collectFlower: () => {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.08);
+        osc.frequency.setValueAtTime(783.99, now + 0.16);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+      },
+
+      collectRemnant: () => {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc2.type = 'triangle';
+
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1760, now + 0.28);
+
+        osc2.frequency.setValueAtTime(440, now);
+        osc2.frequency.exponentialRampToValueAtTime(880, now + 0.28);
+
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        osc.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc2.start(now);
+        osc.stop(now + 0.45);
+        osc2.stop(now + 0.45);
+      }
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xbfe3f7);
+    scene.fog = new THREE.FogExp2(0xbfe3f7, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x82b7dc, 0.7);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfffaed, 0.9);
+    dirLight.position.set(40, 60, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 150;
+    const d = 40;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    scene.add(dirLight);
+
+    const islandGeo = new THREE.CylinderGeometry(35, 25, 12, 32);
+    const islandMat = new THREE.MeshLambertMaterial({ color: 0x8cb369 });
+    const island = new THREE.Mesh(islandGeo, islandMat);
+    island.position.y = -6;
+    island.receiveShadow = true;
+    scene.add(island);
+
+    const playerGroup = new THREE.Group();
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xf4a261 });
+    const clothesMat = new THREE.MeshLambertMaterial({ color: 0xe76f51 });
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.35, 1.1, 16), clothesMat);
+    body.position.y = 0.85;
+    body.castShadow = true;
+    playerGroup.add(body);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), bodyMat);
+    head.position.y = 1.65;
+    head.castShadow = true;
+    playerGroup.add(head);
+
+    scene.add(playerGroup);
+
+    const interactables = [];
+
+    function createTree(x, z) {
+      const group = new THREE.Group();
+      const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
+      const leavesMat = new THREE.MeshLambertMaterial({ color: 0x95d5b2 });
+
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 2.5, 8), trunkMat);
+      trunk.position.y = 1.25;
+      trunk.castShadow = true;
+      group.add(trunk);
+
+      const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6), leavesMat);
+      foliage.position.y = 3;
+      foliage.castShadow = true;
+      group.add(foliage);
+
+      group.position.set(x, 0, z);
+      scene.add(group);
+    }
+
+    function createFlower(x, z) {
+      const flowerGeo = new THREE.DodecahedronGeometry(0.35);
+      const flowerMat = new THREE.MeshLambertMaterial({ color: 0xf4a261 });
+      const flower = new THREE.Mesh(flowerGeo, flowerMat);
+      flower.position.set(x, 0.3, z);
+      flower.castShadow = true;
+      flower.userData = { type: 'flower' };
+      scene.add(flower);
+      interactables.push(flower);
+    }
+
+    function createNostRemnant(x, z) {
+      const remnantGeo = new THREE.OctahedronGeometry(0.4);
+      const remnantMat = new THREE.MeshStandardMaterial({
+        color: 0x80ed99,
+        emissive: 0x38b000,
+        roughness: 0.2,
+        metalness: 0.8
+      });
+      const remnant = new THREE.Mesh(remnantGeo, remnantMat);
+      remnant.position.set(x, 1.2, z);
+      remnant.userData = { type: 'remnant', baseY: 1.2 };
+      scene.add(remnant);
+      interactables.push(remnant);
+    }
+
+    for (let i = 0; i < 18; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 5 + Math.random() * 26;
+      createTree(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+
+    for (let i = 0; i < 14; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 4 + Math.random() * 26;
+      createFlower(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 6 + Math.random() * 24;
+      createNostRemnant(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+
+    let cameraYaw = 0;
+    let cameraPitch = 0.35;
+    const sensitivity = 0.0025;
+
+    document.addEventListener('click', () => {
+      initAudio();
+      if (document.pointerLockElement !== document.body) {
+        document.body.requestPointerLock();
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === document.body) {
+        cameraYaw -= e.movementX * sensitivity;
+        cameraPitch += e.movementY * sensitivity;
+        cameraPitch = Math.max(-0.15, Math.min(Math.PI / 2.3, cameraPitch));
+      }
+    });
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      initAudio();
+      keys[e.code] = true;
+      if (e.code === 'KeyE') checkInteraction();
+    });
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    let inventory = { remnants: 0, flowers: 0 };
+
+    function checkInteraction() {
+      for (let i = interactables.length - 1; i >= 0; i--) {
+        const item = interactables[i];
+        if (item.position.distanceTo(playerGroup.position) < 2.5) {
+          if (item.userData.type === 'remnant') {
+            inventory.remnants++;
+            document.getElementById('remnant-count').innerText = inventory.remnants;
+            soundEffects.collectRemnant();
+          } else if (item.userData.type === 'flower') {
+            inventory.flowers++;
+            document.getElementById('flower-count').innerText = inventory.flowers;
+            soundEffects.collectFlower();
+          }
+          scene.remove(item);
+          interactables.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    let yVelocity = 0;
+    const gravity = -0.015;
+    const speed = 0.12;
+    let isGrounded = true;
+    let walkCycle = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const time = Date.now() * 0.003;
+      interactables.forEach((item) => {
+        if (item.userData.type === 'remnant') {
+          item.rotation.y += 0.02;
+          item.rotation.x += 0.01;
+          item.position.y = item.userData.baseY + Math.sin(time * 1.5) * 0.2;
+        }
+      });
+
+      const moveVec = new THREE.Vector3();
+      if (keys['KeyW']) moveVec.z -= 1;
+      if (keys['KeyS']) moveVec.z += 1;
+      if (keys['KeyA']) moveVec.x -= 1;
+      if (keys['KeyD']) moveVec.x += 1;
+
+      if (moveVec.lengthSq() > 0) {
+        moveVec.normalize();
+        moveVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+
+        playerGroup.position.x += moveVec.x * speed;
+        playerGroup.position.z += moveVec.z * speed;
+
+        const targetRot = Math.atan2(moveVec.x, moveVec.z);
+        playerGroup.rotation.y = targetRot;
+
+        if (isGrounded) {
+          walkCycle += 0.25;
+          body.position.y = 0.85 + Math.abs(Math.sin(walkCycle)) * 0.1;
+          head.position.y = 1.65 + Math.abs(Math.sin(walkCycle)) * 0.1;
+        }
+      } else {
+        body.position.y = 0.85;
+        head.position.y = 1.65;
+      }
+
+      if (keys['Space'] && isGrounded) {
+        yVelocity = 0.28;
+        isGrounded = false;
+        soundEffects.jump();
+      }
+
+      playerGroup.position.y += yVelocity;
+      yVelocity += gravity;
+
+      if (playerGroup.position.y <= 0) {
+        playerGroup.position.y = 0;
+        yVelocity = 0;
+        isGrounded = true;
+      }
+
+      const distFromCenter = Math.sqrt(playerGroup.position.x ** 2 + playerGroup.position.z ** 2);
+      if (distFromCenter > 33) {
+        const angle = Math.atan2(playerGroup.position.z, playerGroup.position.x);
+        playerGroup.position.x = Math.cos(angle) * 33;
+        playerGroup.position.z = Math.sin(angle) * 33;
+      }
+
+      const camDist = 9;
+      const horizontalDist = camDist * Math.cos(cameraPitch);
+      const verticalDist = camDist * Math.sin(cameraPitch);
+
+      camera.position.x = playerGroup.position.x + Math.sin(cameraYaw) * horizontalDist;
+      camera.position.z = playerGroup.position.z + Math.cos(cameraYaw) * horizontalDist;
+      camera.position.y = playerGroup.position.y + 1.2 + verticalDist;
+
+      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+</html>
+
