@@ -443,5 +443,104 @@
   </script>
 </body>
 </html>
+<!-- Mobile Touch Controls Start -->
+<style>
+  #mobile-controls {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+    touch-action: manipulation;
+    z-index: 99999;
+  }
+
+  .ctrl-row {
+    display: flex;
+    gap: 15px;
+  }
+
+  .touch-btn {
+    width: 55px;
+    height: 55px;
+    font-size: 22px;
+    font-weight: bold;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .touch-btn:active {
+    background: rgba(255, 255, 255, 0.8);
+    color: #000000;
+  }
+</style>
+
+<div id="mobile-controls">
+  <div class="ctrl-row">
+    <button type="button" class="touch-btn" id="btn-up">▲</button>
+  </div>
+  <div class="ctrl-row">
+    <button type="button" class="touch-btn" id="btn-left">◀</button>
+    <button type="button" class="touch-btn" id="btn-down">▼</button>
+    <button type="button" class="touch-btn" id="btn-right">▶</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    function fireKeyEvent(keyName, eventType) {
+      const event = new KeyboardEvent(eventType, {
+        key: keyName,
+        code: keyName,
+        bubbles: true,
+        cancelable: true
+      });
+      window.dispatchEvent(event);
+      document.dispatchEvent(event);
+    }
+
+    function setupButton(id, arrowKey, letterKey) {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const handlePress = (e) => {
+        e.preventDefault();
+        fireKeyEvent(arrowKey, "keydown");
+        fireKeyEvent(letterKey, "keydown");
+      };
+
+      const handleRelease = (e) => {
+        e.preventDefault();
+        fireKeyEvent(arrowKey, "keyup");
+        fireKeyEvent(letterKey, "keyup");
+      };
+
+      el.addEventListener("touchstart", handlePress, { passive: false });
+      el.addEventListener("touchend", handleRelease, { passive: false });
+      el.addEventListener("mousedown", handlePress);
+      el.addEventListener("mouseup", handleRelease);
+    }
+
+    // Ye Arrow keys aur W/A/S/D dono ek saath trigger karega
+    setupButton("btn-up", "ArrowUp", "w");
+    setupButton("btn-down", "ArrowDown", "s");
+    setupButton("btn-left", "ArrowLeft", "a");
+    setupButton("btn-right", "ArrowRight", "d");
+  })();
+</script>
+<!-- Mobile Touch Controls End -->
+
 
 
