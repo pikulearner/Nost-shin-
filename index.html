@@ -540,6 +540,137 @@
     setupButton("btn-right", "ArrowRight", "d");
   })();
 </script>
+<!-- Mobile Touch & Camera Drag Controls Start -->
+<style>
+  #touch-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99998;
+    pointer-events: auto;
+  }
+
+  #mobile-dpad {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 99999;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .dpad-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .game-btn {
+    width: 55px;
+    height: 55px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+
+  .game-btn:active {
+    background: rgba(255, 255, 255, 0.8);
+    color: #000;
+  }
+</style>
+
+<div id="mobile-dpad">
+  <div class="dpad-row">
+    <button type="button" class="game-btn" id="m-up">▲</button>
+  </div>
+  <div class="dpad-row">
+    <button type="button" class="game-btn" id="m-left">◀</button>
+    <button type="button" class="game-btn" id="m-down">▼</button>
+    <button type="button" class="game-btn" id="m-right">▶</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    // 1. Movement trigger (Keys + WASD)
+    function sendKey(key, code, type) {
+      const e = new KeyboardEvent(type, {
+        key: key,
+        code: code,
+        bubbles: true,
+        cancelable: true
+      });
+      window.dispatchEvent(e);
+      document.dispatchEvent(e);
+    }
+
+    function bindBtn(id, arrowKey, letterKey, keyName) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sendKey(arrowKey, arrowKey, "keydown");
+        sendKey(letterKey, "Key" + keyName, "keydown");
+      }, { passive: false });
+
+      btn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sendKey(arrowKey, arrowKey, "keyup");
+        sendKey(letterKey, "Key" + keyName, "keyup");
+      }, { passive: false });
+    }
+
+    bindBtn("m-up", "ArrowUp", "w", "W");
+    bindBtn("m-down", "ArrowDown", "s", "S");
+    bindBtn("m-left", "ArrowLeft", "a", "A");
+    bindBtn("m-right", "ArrowRight", "d", "D");
+
+    // 2. Camera Rotation: Screen par finger drag karke charo taraf dekhne ke liye
+    let lastX = 0, lastY = 0;
+    window.addEventListener("touchstart", (e) => {
+      if (e.target.closest("#mobile-dpad")) return;
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+    }, { passive: true });
+
+    window.addEventListener("touchmove", (e) => {
+      if (e.target.closest("#mobile-dpad")) return;
+      const touch = e.touches[0];
+      const movementX = (touch.clientX - lastX) * 1.5;
+      const movementY = (touch.clientY - lastY) * 1.5;
+      lastX = touch.clientX;
+      lastY = touch.clientY;
+
+      const mouseMove = new MouseEvent("mousemove", {
+        bubbles: true,
+        cancelable: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      // PointerLock movement pass karein
+      Object.defineProperty(mouseMove, "movementX", { value: movementX });
+      Object.defineProperty(mouseMove, "movementY", { value: movementY });
+      document.dispatchEvent(mouseMove);
+      window.dispatchEvent(mouseMove);
+    }, { passive: true });
+  })();
+</script>
+<!-- Mobile Touch & Camera Drag Controls End -->
+
 <!-- Mobile Touch Controls End -->
 
 
